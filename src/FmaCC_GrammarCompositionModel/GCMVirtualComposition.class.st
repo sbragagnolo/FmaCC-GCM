@@ -4,7 +4,7 @@ Class {
 	#instVars : [
 		'metamodel'
 	],
-	#category : #'FmaCC_GrammarCompositionModel'
+	#category : #'FmaCC_GrammarCompositionModel-Roassal'
 }
 
 { #category : #initialization }

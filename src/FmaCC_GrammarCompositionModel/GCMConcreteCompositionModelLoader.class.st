@@ -8,7 +8,7 @@ Class {
 		'virtualModelLoader',
 		'map'
 	],
-	#category : #'FmaCC_GrammarCompositionModel'
+	#category : #'FmaCC_GrammarCompositionModel-ModelLoader'
 }
 
 { #category : #adding }

@@ -12,7 +12,7 @@ Class {
 		'astModelStart',
 		'stack'
 	],
-	#category : #'FmaCC_GrammarCompositionModel'
+	#category : #'FmaCC_GrammarCompositionModel-ModelLoader'
 }
 
 { #category : #visiting }

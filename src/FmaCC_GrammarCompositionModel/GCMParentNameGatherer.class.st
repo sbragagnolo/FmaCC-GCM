@@ -1,7 +1,7 @@
 Class {
 	#name : #GCMParentNameGatherer,
 	#superclass : #Object,
-	#category : #'FmaCC_GrammarCompositionModel'
+	#category : #'FmaCC_GrammarCompositionModel-ModelLoader'
 }
 
 { #category : #visiting }

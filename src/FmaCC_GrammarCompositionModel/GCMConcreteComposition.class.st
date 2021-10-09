@@ -1,7 +1,7 @@
 Class {
 	#name : #GCMConcreteComposition,
 	#superclass : #GCMVirtualComposition,
-	#category : #'FmaCC_GrammarCompositionModel'
+	#category : #'FmaCC_GrammarCompositionModel-Roassal'
 }
 
 { #category : #initialization }
