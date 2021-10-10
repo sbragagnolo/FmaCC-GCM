@@ -33,3 +33,8 @@ FM3TypedProperty >> propertyTypes [
 	"The type of this property should be FM3Primitive or something else, but it's currently impossible to reference abstract classes"
 	^ propertyTypes ifNil: [ propertyTypes := Set new  ]
 ]
+
+{ #category : #accessing }
+FM3TypedProperty >> propertyTypes: aCollection [ 
+	propertyTypes := aCollection
+]

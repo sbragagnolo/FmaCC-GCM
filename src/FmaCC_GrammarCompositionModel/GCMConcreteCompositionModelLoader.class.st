@@ -14,37 +14,82 @@ Class {
 { #category : #adding }
 GCMConcreteCompositionModelLoader >> addPropertyBasedOn: aFM3TypedProperty into: from [
 
+	| fromClass slotName prop |
 	from ifNil: [ ^ self ].
+	fromClass := self class environment at: from name.
+	slotName := fromClass allSlots
+		            detect: [ :s | 
+			            s name = aFM3TypedProperty name or: [ 
+				            s name
+				            =
+				            (SmaCCVariableDefinition pluralNameFor:
+					             aFM3TypedProperty name) ] ]
+		            ifNone: [ ^ self ].
+
+	(from allProperties contains: [ :p | p name = slotName name ]) 
+		ifTrue: [ ^ self ].
+	prop := from allProperties
+		        detect: [ :p | p name = slotName name ]
+		        ifNone: [ 
+			        prop := FM3TypedProperty new
+				                name: slotName name;
+				                type: from;
+				                yourself.
+			        from properties add: prop ].
+
 	(aFM3TypedProperty propertyTypes flatCollect: [ :a | 
-		 self allMappedClassesAndSubclasses: a ]) do: [ :to | 
-		(from properties
-			 detect: [ :p | p name = aFM3TypedProperty name ]
-			 ifNone: [ 
-				 | prop |
-				 prop := FM3TypedProperty new
-					         name: aFM3TypedProperty name;
-					         type: from;
-					         yourself.
-				 from properties add: prop.
-				 prop ]) addPropertyType: to ]
+		 self allMappedClassesAndSubclasses: a ]) do: [ :t | 
+		(prop propertyTypes includes: t) ifFalse: [ prop addPropertyType: t ] ]
 ]
 
 { #category : #'as yet unclassified' }
 GCMConcreteCompositionModelLoader >> allMappedClassesAndSubclasses: aFM3Class [
 
-	^ model elements
-		  detect: [ :a | 
-			  a isFM3Class and: [ a name = (self classNameFor: aFM3Class name) ] ]
-		  ifFound: [ :a | { a } ]
-		  ifNone: [ 
-			  aFM3Class subclasses flatCollect: [ :s | 
-				  self allMappedClassesAndSubclasses: s ] ]
+	| thisClass mySubClasses |
+	thisClass := model elements
+		             detect: [ :a | 
+			             a isFM3Class and: [ 
+				             a name = (self classNameFor: aFM3Class name) ] ]
+		             ifFound: [ :a | { a } ]
+		             ifNone: [ {  } ].
+
+	mySubClasses := aFM3Class subclasses flatCollect: [ :s | 
+		                self allMappedClassesAndSubclasses: s ].
+	^ thisClass , mySubClasses
+]
+
+{ #category : #'as yet unclassified' }
+GCMConcreteCompositionModelLoader >> allMappedClassesAndSuperclasses: aFM3Class [
+
+	| first mySuperClasses current |
+	first := self findFirstMappedSuperClass: aFM3Class.
+
+	mySuperClasses := OrderedCollection new.
+	current := first.
+	[ current isNotNil ] whileTrue: [ 
+		mySuperClasses add: current.
+		current := current superclass ].
+	^ mySuperClasses reverse
+]
+
+{ #category : #asserting }
+GCMConcreteCompositionModelLoader >> assertVariablesMakeSense: aFM3Class [
+
+	| clzz slotNames |
+	
+	clzz := self class environment at: aFM3Class name.
+	slotNames := clzz slots collect: #name.
+	"
+	self assert:
+		(aFM3Class properties allSatisfy: [ :n | slotNames includes: n name ])"
 ]
 
 { #category : #'compiling-names' }
 GCMConcreteCompositionModelLoader >> classNameFor: aString [
 
 	| n |
+	aString = #SmaCCToken ifTrue: [ ^ aString ].
+
 	n := '' join: (('_' split: aString) collect: #capitalized).
 	^ (virtualModelLoader prefix , n , virtualModelLoader suffix)
 		  asSymbol
@@ -53,7 +98,7 @@ GCMConcreteCompositionModelLoader >> classNameFor: aString [
 { #category : #'as yet unclassified' }
 GCMConcreteCompositionModelLoader >> findFirstMappedSuperClass: aFM3Class [
 
-	| current before befo |
+	| current |
 	current := aFM3Class.
 
 
@@ -62,10 +107,28 @@ GCMConcreteCompositionModelLoader >> findFirstMappedSuperClass: aFM3Class [
 		model elements contains: [ :a | 
 			a isFM3Class and: [ a name = (self classNameFor: aFM3Class name) ] ] ] ] 
 		whileFalse: [ 
+			current isNil ifTrue: [ ^ nil ].
 			current := current superclass.
-			current isNil ifTrue: [ ^ nil ] ].
+			current isNil ifTrue: [ ^ nil ]
+			 ].
 	^ model elements detect: [ :a | 
 		  a isFM3Class and: [ a name = (self classNameFor: aFM3Class name) ] ]
+]
+
+{ #category : #'as yet unclassified' }
+GCMConcreteCompositionModelLoader >> firstMappedClassOrSuperClass: aFMClass [
+
+	| current mapped |
+	current := aFMClass.
+	[ 
+	current isNotNil and: [ 
+		mapped := model elements
+			          detect: [ :a | 
+				          a isFM3Class and: [ 
+					          a name = (self classNameFor: current name) ] ]
+			          ifNone: [ nil ].
+		mapped isNil ] ] whileTrue: [ current := aFMClass superclass ].
+	^ mapped
 ]
 
 { #category : #'as yet unclassified' }
@@ -96,7 +159,10 @@ GCMConcreteCompositionModelLoader >> loadConcreteModel [
 		         metamodel: FMMetaMetaModel default;
 		         yourself.
 
-	virtualModelLoader model accept: self
+	virtualModelLoader model accept: self.
+	model elements
+		select: [ :a | a isFM3Class ]
+		thenDo: [ :c | self assertVariablesMakeSense: c ]
 ]
 
 { #category : #'as yet unclassified' }
@@ -139,6 +205,12 @@ GCMConcreteCompositionModelLoader >> registerProgramNode [
 ]
 
 { #category : #visiting }
+GCMConcreteCompositionModelLoader >> registerSmaccTokenNode [
+
+	self registerClassNamed: #SmaCCToken
+]
+
+{ #category : #visiting }
 GCMConcreteCompositionModelLoader >> visitClass: aFM3Class [
 
 	| clzz clzzname |
@@ -164,6 +236,7 @@ GCMConcreteCompositionModelLoader >> visitCollection: aCollection [
 GCMConcreteCompositionModelLoader >> visitModel: aFMMetaModel [
 
 	self registerProgramNode.
+	self registerSmaccTokenNode.
 	self visitCollection:
 		(aFMMetaModel elements select: [ :a | a isFM3Class ]).
 	model elements do: [ :a | self fixSuperClassFor: a ].
@@ -174,16 +247,6 @@ GCMConcreteCompositionModelLoader >> visitModel: aFMMetaModel [
 { #category : #visiting }
 GCMConcreteCompositionModelLoader >> visitProperty: aFM3TypedProperty [
 
-	aFM3TypedProperty type ifNil: [ ^ self halt ].
-
-	model elements
-		detect: [ :a | 
-			a isFM3Class and: [ 
-				a name = (self classNameFor: aFM3TypedProperty type name) ] ]
-		ifFound: [ :from | 
-		self addPropertyBasedOn: aFM3TypedProperty into: from ]
-		ifNone: [ 
-			self
-				addPropertyBasedOn: aFM3TypedProperty
-				into: (self findFirstMappedSuperClass: aFM3TypedProperty type) ]
+	(self allMappedClassesAndSuperclasses: aFM3TypedProperty type) do: [ 
+		:from | self addPropertyBasedOn: aFM3TypedProperty into: from ]
 ]

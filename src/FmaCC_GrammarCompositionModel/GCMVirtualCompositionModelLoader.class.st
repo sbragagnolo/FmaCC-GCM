@@ -10,7 +10,8 @@ Class {
 		'astModelSuffix',
 		'astModelRoot',
 		'astModelStart',
-		'stack'
+		'stack',
+		'smaccToken'
 	],
 	#category : #'FmaCC_GrammarCompositionModel-ModelLoader'
 }
@@ -75,13 +76,23 @@ GCMVirtualCompositionModelLoader >> loadTypingDefinition [
 		          (ReadStream on: parserClass parserDefinitionString).
 	parser scanner parseSourceSelector: #canParseSmalltalk:.
 	ast := parser parse.
-	ast acceptVisitor: self
 	
+	smaccToken := self fm3ClassNamed: #SmaCCToken.
+	
+	ast acceptVisitor: self.	
 ]
 
 { #category : #accessing }
 GCMVirtualCompositionModelLoader >> model [
 	^ model
+]
+
+{ #category : #visiting }
+GCMVirtualCompositionModelLoader >> newPropertyNamed: aString [
+
+	| name |
+	name := aString copyReplaceAll: '''' with: ''.
+	^ FM3TypedProperty new name: name
 ]
 
 { #category : #initialization }
@@ -202,7 +213,18 @@ GCMVirtualCompositionModelLoader >> visitIgnoreVariableWarningDirective: aSmaCCI
 { #category : #visiting }
 GCMVirtualCompositionModelLoader >> visitKeywordSymbol: aSmaCCKeywordSymbolNode [
 
-	^ nil
+	| element name |
+	aSmaCCKeywordSymbolNode variableNameToken ifNil: [ ^ nil ].
+
+	name := aSmaCCKeywordSymbolNode variableNameToken value.
+
+	element := (self newPropertyNamed: name)
+		           type: stack top;
+		           addPropertyType: smaccToken;
+		           yourself.
+	model add: element.
+	stack top properties add: element.
+	^ element
 ]
 
 { #category : #visiting }
@@ -245,9 +267,11 @@ GCMVirtualCompositionModelLoader >> visitProductionExpression: aSmaCCProductionE
 
 { #category : #visiting }
 GCMVirtualCompositionModelLoader >> visitProductionRule: aProductionRule [
+
 	stack push: (self fm3ClassNamed: aProductionRule name value).
 	self visitCollection: aProductionRule expressions.
 	stack pop.
+	^ nil
 ]
 
 { #category : #visiting }
@@ -262,7 +286,7 @@ GCMVirtualCompositionModelLoader >> visitProductionSymbol: aSmaCCProductionSymbo
 			           copyReplaceAll: ''''
 			           with: ''.
 
-		element := FM3TypedProperty new
+		element := (self newPropertyNamed: varname)
 			           name: varname;
 			           type: stack top;
 			           addPropertyType: vartype;
@@ -309,11 +333,26 @@ GCMVirtualCompositionModelLoader >> visitSuperclassDirective: aSmaCCSuperclassDi
 ]
 
 { #category : #visiting }
-GCMVirtualCompositionModelLoader >> visitTokenRule: aSmaCCTokenRuleNode [ 
+GCMVirtualCompositionModelLoader >> visitTokenRule: aSmaCCTokenRuleNode [
+
+	^ nil
 ]
 
 { #category : #visiting }
 GCMVirtualCompositionModelLoader >> visitTokenSymbol: aSmaCCTokenSymbolNode [
 
-	^ nil
+	| element name |
+	name := aSmaCCTokenSymbolNode variableNameToken
+		        ifNil: [ 
+			        (aSmaCCTokenSymbolNode name value
+				         copyFrom: 2
+				         to: aSmaCCTokenSymbolNode name value size - 1) , 'Token' ]
+		        ifNotNil: [ :a | a value ].
+	element := (self newPropertyNamed: name)
+		           type: stack top;
+		           addPropertyType: smaccToken;
+		           yourself.
+	model add: element.
+	stack top properties add: element.
+	^ element
 ]
